@@ -18,7 +18,7 @@ const Login = () => {
     try {
         await signInWithEmailAndPassword(auth, email, password);
         setError("Login Successful")
-        navigate("/upload");
+        navigate("/gallery");
     } catch (err) {
       setError(err.message);
     }

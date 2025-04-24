@@ -2,7 +2,7 @@ import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
-import Upload from "./pages/Upload";
+import Upload from "./pages/Gallery";
 import PrivateRoute from "./components/PrivateRoute";
 
 const App = () => {
@@ -12,7 +12,7 @@ const App = () => {
         <Route path="/" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route
-          path="/upload"
+          path="/gallery"
           element={
             <PrivateRoute>
               <Upload />

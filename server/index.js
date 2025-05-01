@@ -17,6 +17,7 @@ const PORT = 4000;
 app.use(cors());
 app.use(express.json());
 
+
 // LowDB setup
 const adapter = new JSONFile('db.json');
 const db = new Low(adapter,{files:[]});
@@ -58,12 +59,12 @@ const moveAndProcessFile = async (tempPath, userId, filename) => {
 // Routes
 
 // Test route
-app.get('/', (req, res) => {
+app.get('/api', (req, res) => {
   res.send('Server is running!');
 });
 
 // Upload route
-app.post('/upload', upload.array('files'), async (req, res) => {
+app.post('/api/upload', upload.array('files'), async (req, res) => {
   try {
     const userId = req.headers['x-user-id'];
     if (!userId) return res.status(400).json({ message: 'Missing user ID' });
@@ -96,14 +97,14 @@ app.post('/upload', upload.array('files'), async (req, res) => {
 });
 
 // Get uploads for user
-app.get('/uploads/:userId', async (req, res) => {
+app.get('/api/uploads/:userId', async (req, res) => {
   const { userId } = req.params;
   const userFiles = db.data.files.filter(file => file.userId === userId);
   res.json({ files: userFiles });
 });
 
 // Get thumbnails
-app.get('/thumbs/:userId/:filename', async (req, res) => {
+app.get('/api/thumbs/:userId/:filename', async (req, res) => {
   const { userId, filename } = req.params;
   const thumbPath = path.join(THUMBS_DIR, userId, filename);
   
@@ -115,7 +116,7 @@ app.get('/thumbs/:userId/:filename', async (req, res) => {
 });
 
 // Serve full-size files
-app.get('/uploads/:userId/:filename', async (req, res) => {
+app.get('/api/uploads/:userId/:filename', async (req, res) => {
   const { userId, filename } = req.params;
   const filePath = path.join(UPLOADS_DIR, userId, filename);
 
@@ -127,7 +128,7 @@ app.get('/uploads/:userId/:filename', async (req, res) => {
 });
 
 // Delete file
-app.delete('/delete', async (req, res) => {
+app.delete('api/delete', async (req, res) => {
   try {
     const { userId, filename } = req.body;
     if (!userId || !filename) return res.status(400).json({ message: 'Missing userId or filename' });

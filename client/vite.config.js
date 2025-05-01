@@ -6,4 +6,12 @@ import tailwindcss from '@tailwindcss/vite'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(),tailwindcss()],
+  server: {
+    host: true,
+    allowedHosts: ["earlier-tp-print-gas.trycloudflare.com"],
+    port: 5173,
+    proxy: {
+      '/api': 'http://localhost:4000',
+    },
+  },
 })

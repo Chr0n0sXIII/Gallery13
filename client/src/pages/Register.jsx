@@ -21,27 +21,30 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+    <div className="min-h-screen min-w-screen flex items-center justify-center bg-gradient-to-br from-purple-100 to-blue-200 p-[10px]">
       <form
         onSubmit={handleRegister}
-        className="bg-white p-6 rounded-lg shadow-md w-full max-w-sm"
+        className="bg-white p-[10px] sm:p-8 rounded-2xl shadow-xl w-full max-w-md"
       >
-        <h2 className="text-2xl font-bold mb-4 text-center">Register</h2>
+        <h2 className="text-3xl font-semibold text-center text-gray-800 mb-6">Register</h2>
 
         {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
-
+        
+        <label className="block text-black text-sm font-medium mb-1">Email</label>
         <input
           type="email"
           placeholder="Email"
-          className="w-full mb-3 p-2 border rounded"
+          className="text-black w-full mb-3 p-2 border rounded"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
         />
+
+        <label className="block text-black text-sm font-medium mb-1">Password</label>
         <input
           type="password"
           placeholder="Password"
-          className="w-full mb-4 p-2 border rounded"
+          className="text-black w-full mb-4 p-2 border rounded"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
@@ -53,7 +56,7 @@ const Register = () => {
           Register
         </button>
 
-        <p className="text-sm text-center mt-4">
+        <p className="text-black text-sm text-center mt-4">
           Already have an account?{" "}
           <Link to="/" className="text-blue-500 hover:underline">
             Login

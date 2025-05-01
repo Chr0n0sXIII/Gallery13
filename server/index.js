@@ -128,7 +128,7 @@ app.get('/api/uploads/:userId/:filename', async (req, res) => {
 });
 
 // Delete file
-app.delete('api/delete', async (req, res) => {
+app.delete('/api/delete', async (req, res) => {
   try {
     const { userId, filename } = req.body;
     if (!userId || !filename) return res.status(400).json({ message: 'Missing userId or filename' });

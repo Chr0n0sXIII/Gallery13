@@ -8,7 +8,7 @@ export default defineConfig({
   plugins: [react(),tailwindcss()],
   server: {
     host: true,
-    allowedHosts: ["earlier-tp-print-gas.trycloudflare.com"],
+    allowedHosts: [".trycloudflare.com"],
     port: 5173,
     proxy: {
       '/api': 'http://localhost:4000',

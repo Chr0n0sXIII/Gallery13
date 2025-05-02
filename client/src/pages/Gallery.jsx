@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { useNavigate } from "react-router-dom";
 
 const SERVER_URL = "/api";
 
@@ -9,6 +10,7 @@ const Gallery = () => {
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [previewIndex, setPreviewIndex] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const auth = getAuth();
@@ -116,6 +118,12 @@ const Gallery = () => {
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <h1 className="text-3xl font-bold mb-6">Your Gallery</h1>
+      <button
+          onClick={() => navigate(`/bin`)}
+          className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+        >
+          View Bin
+        </button>
 
       {/* Upload */}
       <div className="mb-6 flex items-center space-x-4">

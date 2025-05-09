@@ -119,11 +119,11 @@ const Gallery = () => {
     <div className="p-6 max-w-7xl mx-auto">
       <h1 className="text-3xl font-bold mb-6">Your Gallery</h1>
       <button
-          onClick={() => navigate(`/bin`)}
-          className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-        >
-          View Bin
-        </button>
+        onClick={() => navigate(`/bin`)}
+        className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+      >
+        View Bin
+      </button>
 
       {/* Upload */}
       <div className="mb-6 flex items-center space-x-4">
@@ -148,7 +148,7 @@ const Gallery = () => {
       {/* Gallery */}
       {uploadedFiles.length > 0 ? (
         Object.entries(groupedFiles).map(([monthYear, files], groupStartIdx) => (
-          <div key={monthYear} className="mb-10">
+          <div key={groupStartIdx} className="mb-10">
             <h2 className="text-xl font-semibold text-gray-700 mb-4 border-b pb-1">{monthYear}</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
               {files.map((file, idx) => {
@@ -174,7 +174,7 @@ const Gallery = () => {
                       ) : (
                         <img
                           src={thumb}
-                          alt=""
+                          alt="thumbnail"
                           className="w-full h-full object-cover"
                           loading="lazy"
                         />
@@ -233,7 +233,7 @@ const Gallery = () => {
               ) : (
                 <img
                   src={fullUrl}
-                  alt=""
+                  alt="full preview"
                   className="max-w-full max-h-[80vh] rounded-lg object-contain"
                 />
               );

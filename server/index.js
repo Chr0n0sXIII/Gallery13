@@ -9,33 +9,37 @@ import { nanoid } from 'nanoid';
 import fs from 'fs-extra';
 import path from 'path';
 
+// Setup server
 const app = express();
 const PORT = 4000;
 
+// Middleware
 app.use(cors());
 app.use(express.json());
 
 // LowDB setup
 const adapter = new JSONFile('db.json');
-const db = new Low(adapter,[]);
+const db = new Low(adapter, { files: [] });
 await db.read();
-
+ // Initialize if empty
 db.data ||= {};
-db.data.files ||= [];
-db.data.bin ||= [];
+db.data.bin ||= {};
+db.data.uploads ||= {};
 
 // File storage setup
 const upload = multer({ dest: 'temp/' });
-
 const UPLOADS_DIR = path.join('uploads');
 const THUMBS_DIR = path.join('thumbs');
-const BIN_DIR = path.join('bin');
+const BIN_DIR = path.join('bin')
 
+// Ensure folders exist
 await fs.ensureDir(UPLOADS_DIR);
 await fs.ensureDir(THUMBS_DIR);
-await fs.ensureDir(BIN_DIR);
 
-// Helper: Move file and create thumbnail
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+
+// Helper functions
 const moveAndProcessFile = async (tempPath, userId, filename) => {
   const userUploadPath = path.join(UPLOADS_DIR, userId);
   const userThumbPath = path.join(THUMBS_DIR, userId);
@@ -46,12 +50,18 @@ const moveAndProcessFile = async (tempPath, userId, filename) => {
   const newPath = path.join(userUploadPath, filename);
   const thumbPath = path.join(userThumbPath, filename);
 
+  // Move original file
   await fs.move(tempPath, newPath, { overwrite: true });
 
+  // Generate thumbnail if it's an image
   if (/\.(jpe?g|png|webp)$/i.test(filename)) {
-    await sharp(newPath).resize(412, 412).toFile(thumbPath);
+    await sharp(newPath)
+      .resize(412, 412)  // Resize to thumbnail size
+      .toFile(thumbPath); // Save the thumbnail
   }
 };
+
+// Routes
 
 // Test route
 app.get('/api', (req, res) => {
@@ -74,12 +84,11 @@ app.post('/api/upload', upload.array('files'), async (req, res) => {
 
       const fileEntry = {
         id: nanoid(),
-        userId,
         filename: newFilename,
         uploadedAt: Date.now()
       };
-
-      db.data.files.push(fileEntry);
+      db.data.uploads[userId]= db.data.uploads[userId]||[];
+      db.data.uploads[userId].push(fileEntry);
       uploadedFiles.push(fileEntry);
     }
 
@@ -91,22 +100,37 @@ app.post('/api/upload', upload.array('files'), async (req, res) => {
   }
 });
 
-// Get user uploads
+// Get uploads for user
 app.get('/api/uploads/:userId', async (req, res) => {
   const { userId } = req.params;
-  const userFiles = db.data.files.filter(file => file.userId === userId);
+  const userFiles = db.data.uploads[userId];
   res.json({ files: userFiles });
 });
 
 // Get thumbnails
+
 app.get('/api/thumbs/:userId/:filename', async (req, res) => {
   const { userId, filename } = req.params;
   const thumbPath = path.join(THUMBS_DIR, userId, filename);
 
-  if (await fs.pathExists(thumbPath)) {
-    res.sendFile(path.resolve(thumbPath));
-  } else {
-    res.status(404).json({ message: 'Thumbnail not found' });
+  try {
+    // First check
+    if (await fs.pathExists(thumbPath)) {
+      return res.sendFile(path.resolve(thumbPath));
+    }
+
+    // Wait 5 seconds and retry
+    await delay(5000);
+
+    if (await fs.pathExists(thumbPath)) {
+      return res.sendFile(path.resolve(thumbPath));
+    }
+
+    // If still not found
+    res.status(404).json({ message: 'Thumbnail not found after retry' });
+  } catch (error) {
+    console.error('Error fetching thumbnail:', error);
+    res.status(500).json({ message: 'Internal server error' });
   }
 });
 
@@ -122,36 +146,32 @@ app.get('/api/uploads/:userId/:filename', async (req, res) => {
   }
 });
 
-// Bin route (get all files in bin for user)
-app.get('/api/bin/:userId', (req, res) => {
+// Bin Route
+app.get("/api/bin/:userId", async (req, res) => {
   const { userId } = req.params;
-  const userBinPath = path.join(BIN_DIR, userId);
 
   try {
-    if (!fs.existsSync(userBinPath)) return res.json({ files: [] });
+    // Ensure bin structure exists
+    const userBin = db.data.bin?.[userId] || [];
 
-    const files = fs.readdirSync(userBinPath)
-      .filter(f => !f.endsWith(".json"))
-      .map(filename => {
-        const metaPath = path.join(userBinPath, `${filename}.json`);
-        const metadata = fs.existsSync(metaPath)
-          ? JSON.parse(fs.readFileSync(metaPath, "utf-8"))
-          : { deletedAt: null };
-
-        return { filename, deletedAt: metadata.deletedAt };
-      });
+    // Map to return metadata
+    const files = userBin.map(entry => ({
+      filename: entry.filename,
+      deletedAt: entry.deletedAt,
+    }));
 
     res.json({ files });
   } catch (err) {
-    console.error(err);
+    console.error("Bin read error:", err);
     res.status(500).json({ message: "Failed to load bin" });
   }
 });
 
-// Serve bin image
+//Fetch Bin Images
 app.get('/api/bin/:userId/:filename', async (req, res) => {
   const { userId, filename } = req.params;
   const filePath = path.join(BIN_DIR, userId, filename);
+
   if (await fs.pathExists(filePath)) {
     res.sendFile(path.resolve(filePath));
   } else {
@@ -159,38 +179,31 @@ app.get('/api/bin/:userId/:filename', async (req, res) => {
   }
 });
 
-// Restore route
-app.post('/api/restore', async (req, res) => {
+// Restore Route
+app.post("/api/restore", async (req, res) => {
   const { userId, filename } = req.body;
   if (!userId || !filename) {
     return res.status(400).json({ error: "Missing userId or filename" });
   }
 
-  const userBinPath = path.join(BIN_DIR, userId);
-  const userUploadPath = path.join(UPLOADS_DIR, userId);
-  const binFilePath = path.join(userBinPath, filename);
-  const restorePath = path.join(userUploadPath, filename);
+  const binPath = path.join("bin", userId, filename);
+  const uploadPath = path.join("uploads", userId, filename);
 
   try {
-    if (!await fs.pathExists(binFilePath)) {
+    // Ensure file exists in bin
+    const userBin = db.data.bin[userId] || [];
+    const fileEntry = userBin.find(f => f.filename === filename);
+    if (!fileEntry || !fs.existsSync(binPath)) {
       return res.status(404).json({ error: "File not found in bin" });
     }
 
-    await fs.ensureDir(userUploadPath);
-    await fs.move(binFilePath, restorePath);
+    // Move file from bin -> uploads
+    fs.renameSync(binPath, uploadPath);
 
-    const thumbPath = path.join(THUMBS_DIR, userId, filename);
-    if (/\.(jpe?g|png|webp)$/i.test(filename)) {
-      await sharp(restorePath).resize(412, 412).toFile(thumbPath);
-    }
-
-    db.data.bin = db.data.bin.filter(f => !(f.userId === userId && f.filename === filename));
-    db.data.files.push({
-      id: nanoid(),
-      userId,
-      filename,
-      uploadedAt: Date.now()
-    });
+    // Update DB
+    db.data.bin[userId] = userBin.filter(f => f.filename !== filename);
+    db.data.uploads[userId] = db.data.uploads[userId] || [];
+    db.data.uploads[userId].push({ filename, uploadedAt: Date.now() });
 
     await db.write();
 
@@ -201,35 +214,45 @@ app.post('/api/restore', async (req, res) => {
   }
 });
 
-// Delete route (move to bin)
-app.delete('/api/delete', async (req, res) => {
+// Delete file
+app.delete("/api/delete", async (req, res) => {
   const { userId, filename } = req.body;
   if (!userId || !filename) return res.status(400).json({ message: "Missing data" });
 
-  const userUploadPath = path.join(UPLOADS_DIR, userId);
-  const userBinPath = path.join(BIN_DIR, userId);
+  const userUploadPath = path.join("uploads", userId);
+  const userBinPath = path.join("bin", userId);
 
   const filePath = path.join(userUploadPath, filename);
   const binPath = path.join(userBinPath, filename);
-  const metaPath = path.join(userBinPath, `${filename}.json`);
 
   try {
-    if (!await fs.pathExists(filePath)) return res.status(404).json({ message: "File not found" });
+    if (!fs.existsSync(filePath)) return res.status(404).json({ message: "File not found" });
 
-    await fs.ensureDir(userBinPath);
-    await fs.move(filePath, binPath);
+    // Create bin folder if missing
+    fs.mkdirSync(userBinPath, { recursive: true });
 
+     // Write metadata with deletion timestamp
     const metadata = {
-      userId,
+      userId: userId,
       filename,
       deletedAt: Date.now(),
     };
-    await fs.writeJson(metaPath, metadata);
 
-    db.data.files = db.data.files.filter(f => !(f.userId === userId && f.filename === filename));
-    db.data.bin.push(metadata);
+    // Update bin DB
+    
+    db.data.bin[userId] = db.data.bin[userId] || [];
+    db.data.bin[userId].push(metadata);
+    if (db.data.uploads[userId]) {
+      db.data.uploads[userId] = db.data.uploads[userId].filter(
+        (file) => file.filename !== filename
+      );
+    }
+    
+    console.log(db.data.bin[userId]);
     await db.write();
 
+    // Move file to bin
+    fs.renameSync(filePath, binPath);
     res.json({ message: "Moved to bin" });
   } catch (err) {
     console.error(err);
